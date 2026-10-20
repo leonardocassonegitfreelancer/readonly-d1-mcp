@@ -1,0 +1,29 @@
+# Copy to wrangler.toml and fill in your own values. Never commit the real file.
+name = "readonly-d1-mcp"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# One KV namespace holds everything this server remembers:
+#   token:<sha256>   a person's hashed token  -> their name
+#   trust:<name>     first-use approval given
+#   pending:<token>  one-time approval links (expire after 1 hour)
+#   audit:<time>     who ran what (expires after 30 days)
+# Create it with:  npx wrangler kv namespace create STATE
+[[kv_namespaces]]
+binding = "STATE"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+[vars]
+CF_ACCOUNT_ID = "REPLACE_WITH_YOUR_ACCOUNT_ID"
+CF_D1_DATABASE_ID = "REPLACE_WITH_THE_D1_DATABASE_ID_TO_EXPOSE"
+
+# Off by default: every audited call is one KV write, and the Workers KV free
+# plan allows 1,000 writes per day (checked 2026-10-20). Turn on if you need
+# the trail and have the headroom.
+AUDIT_ENABLED = "false"
+
+# The read-only credential is a SECRET, never a var:
+#   1. In the Cloudflare dashboard create an API token with ONE permission:
+#      Account > D1 > Read   (nothing else).
+#   2. npx wrangler secret put CF_D1_READ_TOKEN
