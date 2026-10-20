@@ -77,7 +77,8 @@ The mock refuses writes the way a read-only token would. It exists to exercise t
 
 - **67 unit tests** (`npm test`): the SQL guard (accepted and rejected queries, including comment tricks, a second statement, a data-modifying CTE and breaking out of the row cap), token hashing and revocation, the approval flow (single use, retries, `GET` does not approve), the REST client, and the tools against real SQLite.
 - **An end-to-end run on a local `wrangler dev`** against the mock: no token and a wrong token are refused, the first call is blocked with a link, opening the link does not approve, `POST` approves, the three tools work, writes and a second statement are refused, the link cannot be reused.
-- **Not tested:** a deployment on Cloudflare, the live D1 REST API, and a real MCP client. `describe_table` reads columns with `pragma_table_info` inside a `SELECT`; that works in SQLite, and I have not confirmed it against live D1.
+- **Checked against live D1 (2026-10-20):** the SQL behind `list_tables`, the `pragma_table_info` query behind `describe_table`, and the row-cap wrapper with a trailing comment all ran correctly through the real D1 REST API (sent through an existing read-only D1 connection, schema metadata only, no table data).
+- **Not tested:** a deployment of this Worker on Cloudflare, the bound-parameter (`params`) path of the REST call against live D1, and a real MCP client.
 - **Not measured:** CPU time per request on the Workers Free plan (10 ms). An MCP server object is built on every request; test under your own load.
 
 ## Known limits
