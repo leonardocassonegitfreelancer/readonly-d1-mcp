@@ -48,7 +48,7 @@ npx wrangler deploy
 npm run token -- "Ana Perez"                # prints a token once + the command to register it
 ```
 
-**Check the guarantee yourself, once.** Send a write with your read token to the D1 REST endpoint and confirm Cloudflare refuses it. This repository's tests prove the guard and the flow; they cannot prove how your token is scoped.
+**Check the guarantee yourself, once.** This repository's tests prove the guard and the flow; they cannot prove how your token is scoped. Send a *real* write with your read token to the D1 REST endpoint and confirm Cloudflare refuses it. A harmless way to do it is an update that rewrites one row with the value it already has, for example `UPDATE some_table SET some_column = some_column WHERE id = (SELECT MIN(id) FROM some_table)`: if the token is read-only it is refused and nothing changes; if it succeeds, your token is too broad, so fix it. Do not use a statement that changes no rows (such as `DELETE ... WHERE 1 = 0`) as the test: see the next paragraph.
 
 Revoke a person: delete their `token:<hash>` key (the script prints the command). Nobody else is affected and nothing is redeployed.
 
@@ -78,6 +78,7 @@ The mock refuses writes the way a read-only token would. It exists to exercise t
 - **67 unit tests** (`npm test`): the SQL guard (accepted and rejected queries, including comment tricks, a second statement, a data-modifying CTE and breaking out of the row cap), token hashing and revocation, the approval flow (single use, retries, `GET` does not approve), the REST client, and the tools against real SQLite.
 - **An end-to-end run on a local `wrangler dev`** against the mock: no token and a wrong token are refused, the first call is blocked with a link, opening the link does not approve, `POST` approves, the three tools work, writes and a second statement are refused, the link cannot be reused.
 - **Checked against live D1 (2026-10-20):** the SQL behind `list_tables`, the `pragma_table_info` query behind `describe_table`, and the row-cap wrapper with a trailing comment all ran correctly through the real D1 REST API (sent through an existing read-only D1 connection, schema metadata only, no table data).
+- **The write refusal was checked against live D1 too (2026-10-20):** with a read-scoped token, a real one-row `UPDATE` (rewriting the value it already had, so no data could change) was **refused** with error 7500, "You do not have permission to perform this operation". Note what is *not* refused: statements that change no rows, such as `DELETE ... WHERE 1 = 0` or `UPDATE ... WHERE 1 = 0`, returned success with `changes: 0`. D1 enforces the permission when a write actually happens, not by statement type. That is why the guarantee is described as "writes are impossible" and not "write statements are rejected", and why the SQL guard still refuses them: it should not depend on that distinction.
 - **Not tested:** a deployment of this Worker on Cloudflare, the bound-parameter (`params`) path of the REST call against live D1, and a real MCP client.
 - **Not measured:** CPU time per request on the Workers Free plan (10 ms). An MCP server object is built on every request; test under your own load.
 
